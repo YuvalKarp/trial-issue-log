@@ -1,0 +1,11 @@
+{
+  "name": "trial-issue-log",
+  "private": true,
+  "description": "Issue log for clinical trial site visits",
+  "scripts": {
+    "db:up": "docker compose up -d --wait db",
+    "db:down": "docker compose down",
+    "dev:server": "npm run db:up && npm run dev --prefix server",
+    "test": "npm run db:up && npm test --prefix server"
+  }
+}
