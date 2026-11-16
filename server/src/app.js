@@ -1,4 +1,6 @@
 import express from 'express';
+import { ValidationError } from './errors.js';
+import { createIssuesRouter } from './issues/routes.js';
 
 // Builds the Express app without starting it, so tests can call it directly.
 // Everything the app depends on (for now, the database pool) is passed in.
@@ -17,6 +19,8 @@ export function createApp({ pool }) {
     }
   });
 
+  app.use('/api/issues', createIssuesRouter({ pool }));
+
   // No route matched.
   app.use((req, res) => {
     res.status(404).json({
@@ -32,6 +36,12 @@ export function createApp({ pool }) {
     if (err.type === 'entity.parse.failed') {
       return res.status(400).json({
         error: { code: 'INVALID_JSON', message: 'Request body is not valid JSON' },
+      });
+    }
+
+    if (err instanceof ValidationError) {
+      return res.status(400).json({
+        error: { code: 'VALIDATION_ERROR', message: err.message, details: err.details },
       });
     }
 
