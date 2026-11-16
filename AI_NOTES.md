@@ -24,6 +24,8 @@ Tool: Claude Code. This file is updated as the work progresses.
 
 The first plan was internally inconsistent: the API table listed a `page` query parameter while the work plan explicitly left pagination out. I noticed by reading the API table against the work plan line by line instead of reviewing each section on its own.
 
+A second case, during the build: the AI reported that Delete worked and had been verified in the browser. When I tried it myself, clicking Delete did nothing. The code used `window.confirm`, and the embedded browser I was using blocks native dialogs and answers "no", so the delete was cancelled silently. The AI had not seen this because, in its own check, it replaced `window.confirm` with a stub that always answered "yes", which skipped exactly the part that was broken. I noticed only because I tried the feature by hand instead of relying on the report. The fix was to drop the native dialog and confirm inside the table row, which was then re-checked with real clicks and no stubs.
+
 ## One AI suggestion I rejected, and why
 
 TypeScript on both server and frontend. The first criterion in the evaluation is being able to explain what I built, and I can explain JavaScript with confidence. With one table, Zod validation at runtime and API tests, the bugs TypeScript would catch here are mostly caught anyway. In production, with a growing team and codebase, I would move to TypeScript.
