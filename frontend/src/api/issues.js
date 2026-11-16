@@ -11,11 +11,27 @@ export function useIssues() {
   });
 }
 
-export function useCreateIssue() {
+// A mutation that refetches the issues list after it succeeds, so the UI always shows
+// what the server has rather than a local guess.
+function useIssueMutation(mutationFn) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (issue) => request('/api/issues', { method: 'POST', body: issue }),
-    // After a successful create, refetch the list so the new issue appears.
+    mutationFn,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ISSUES_KEY }),
   });
+}
+
+export function useCreateIssue() {
+  return useIssueMutation((issue) => request('/api/issues', { method: 'POST', body: issue }));
+}
+
+// Called with { id, ...changes }. Only the changes are sent.
+export function useUpdateIssue() {
+  return useIssueMutation(({ id, ...changes }) =>
+    request(`/api/issues/${id}`, { method: 'PATCH', body: changes }),
+  );
+}
+
+export function useDeleteIssue() {
+  return useIssueMutation((id) => request(`/api/issues/${id}`, { method: 'DELETE' }));
 }

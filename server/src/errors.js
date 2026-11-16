@@ -6,6 +6,9 @@ export class ValidationError extends Error {
   }
 }
 
+// Thrown when the requested record does not exist. The error handler turns it into a 404.
+export class NotFoundError extends Error {}
+
 // Validates `data` against a Zod schema. Returns the cleaned data (trimmed, with defaults applied)
 // or throws a ValidationError listing every problem as { field, message }.
 export function parse(schema, data) {

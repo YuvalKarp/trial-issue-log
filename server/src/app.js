@@ -1,5 +1,5 @@
 import express from 'express';
-import { ValidationError } from './errors.js';
+import { NotFoundError, ValidationError } from './errors.js';
 import { createIssuesRouter } from './issues/routes.js';
 
 // Builds the Express app without starting it, so tests can call it directly.
@@ -43,6 +43,10 @@ export function createApp({ pool }) {
       return res.status(400).json({
         error: { code: 'VALIDATION_ERROR', message: err.message, details: err.details },
       });
+    }
+
+    if (err instanceof NotFoundError) {
+      return res.status(404).json({ error: { code: 'NOT_FOUND', message: err.message } });
     }
 
     console.error(err);
