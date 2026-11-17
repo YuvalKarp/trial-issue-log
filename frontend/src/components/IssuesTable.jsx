@@ -6,7 +6,7 @@ import EditIssueDialog from './EditIssueDialog.jsx';
 const formatDate = (iso) =>
   new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 
-export default function IssuesTable({ issues }) {
+export default function IssuesTable({ issues, emptyMessage }) {
   // The issue currently open in the edit dialog, or null when the dialog is closed.
   const [editing, setEditing] = useState(null);
   // The id of the issue whose row is asking "Delete this issue?", or null.
@@ -31,7 +31,7 @@ export default function IssuesTable({ issues }) {
   };
 
   if (issues.length === 0) {
-    return <p className="muted">No issues yet. Create the first one above.</p>;
+    return <p className="muted">{emptyMessage}</p>;
   }
 
   return (

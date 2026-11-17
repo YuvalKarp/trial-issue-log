@@ -1,7 +1,12 @@
 import { Router } from 'express';
 import { NotFoundError, parse } from '../errors.js';
 import { createIssuesRepository } from './repository.js';
-import { createIssueSchema, issueParamsSchema, updateIssueSchema } from './schema.js';
+import {
+  createIssueSchema,
+  issueParamsSchema,
+  listIssuesQuerySchema,
+  updateIssueSchema,
+} from './schema.js';
 
 // Routes under /api/issues. Each handler validates input, calls the repository and shapes the response.
 // Express 5 forwards errors thrown in async handlers to the error handler in app.js.
@@ -10,7 +15,8 @@ export function createIssuesRouter({ pool }) {
   const issues = createIssuesRepository(pool);
 
   router.get('/', async (req, res) => {
-    const items = await issues.list();
+    const filters = parse(listIssuesQuerySchema, req.query);
+    const items = await issues.list(filters);
     // Wrapped in an object so fields like `total` can be added later without breaking clients.
     res.json({ items });
   });

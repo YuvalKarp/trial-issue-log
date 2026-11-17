@@ -12,6 +12,13 @@ const COLUMNS = `
 // never from the request.
 const UPDATABLE_COLUMNS = ['title', 'description', 'site', 'severity', 'status'];
 
+// In a LIKE pattern, % matches any text and _ matches any single character. A user who
+// searches for "100%" means those characters literally, so each special character
+// (and the escape character itself) gets a backslash in front of it.
+export function escapeLike(text) {
+  return text.replace(/[\\%_]/g, '\\$&');
+}
+
 export function createIssuesRepository(pool) {
   return {
     async create({ title, description, site, severity, status }) {
@@ -24,12 +31,33 @@ export function createIssuesRepository(pool) {
       return rows[0];
     },
 
-    // Newest first. id breaks ties between issues created at the same moment.
-    async list() {
+    // Issues matching all the given filters, newest first. id breaks ties between issues
+    // created at the same moment. Each filter that is present adds one condition and one parameter.
+    async list({ search, status, severity } = {}) {
+      const conditions = [];
+      const values = [];
+
+      if (search) {
+        values.push(`%${escapeLike(search)}%`);
+        // ILIKE is case-insensitive. ESCAPE names the character escapeLike() puts before % and _.
+        conditions.push(`title ILIKE $${values.length} ESCAPE '\\'`);
+      }
+      if (status) {
+        values.push(status);
+        conditions.push(`status = $${values.length}`);
+      }
+      if (severity) {
+        values.push(severity);
+        conditions.push(`severity = $${values.length}`);
+      }
+
+      const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
       const { rows } = await pool.query(
         `SELECT ${COLUMNS}
          FROM issues
+         ${where}
          ORDER BY created_at DESC, id DESC`,
+        values,
       );
       return rows;
     },

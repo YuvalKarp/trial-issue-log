@@ -40,6 +40,20 @@ export const updateIssueSchema = z
   })
   .refine((body) => Object.keys(body).length > 0, { message: 'At least one field is required' });
 
+// Query string of GET /api/issues. All filters are optional and combine with AND.
+// An empty search (?search=) means "no search". Unknown parameters are rejected, so a
+// misspelled filter name is an error rather than a filter that silently does nothing.
+export const listIssuesQuerySchema = z.strictObject({
+  search: z
+    .string({ error: 'Search must be a single text value' })
+    .trim()
+    .max(200, 'Search must be at most 200 characters')
+    .transform((text) => text || undefined)
+    .optional(),
+  status: fields.status.optional(),
+  severity: fields.severity.optional(),
+});
+
 // The :id in the URL. It arrives as a string; only a positive integer that fits the
 // database column is accepted, so "abc" or "stats" is a 400 and never reaches SQL.
 const MAX_ID = 2147483647;

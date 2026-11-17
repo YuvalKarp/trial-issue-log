@@ -12,7 +12,8 @@ _To be filled in._
 
 ## Growth
 
-_To be filled in._
+- **Title search scans the whole table.** Search uses `ILIKE '%text%'`, which a regular index cannot help with, so every search reads every row. With hundreds or a few thousand issues this is instant; with hundreds of thousands (many sites, many studies) it will slow down.
+  - Before that scale: add a trigram index (`pg_trgm` extension, GIN index on `title`), which makes the same query fast without changing the API.
 
 ## Gaps
 

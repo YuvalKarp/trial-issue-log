@@ -1,13 +1,20 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { request } from './client.js';
 
 // Every query about issues starts with this key, so one invalidation refreshes them all.
 const ISSUES_KEY = ['issues'];
 
-export function useIssues() {
+// `filters` is { search, status, severity }; an empty string means "no filter" and is not sent.
+export function useIssues(filters = {}) {
+  const active = Object.fromEntries(Object.entries(filters).filter(([, value]) => value));
+  const queryString = new URLSearchParams(active).toString();
+
   return useQuery({
-    queryKey: ISSUES_KEY,
-    queryFn: () => request('/api/issues'),
+    // The filters are part of the key, so each combination is fetched and cached separately.
+    queryKey: [...ISSUES_KEY, active],
+    queryFn: () => request(queryString ? `/api/issues?${queryString}` : '/api/issues'),
+    // While a new combination loads, keep showing the previous results instead of a blank table.
+    placeholderData: keepPreviousData,
   });
 }
 

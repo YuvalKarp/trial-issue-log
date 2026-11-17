@@ -200,6 +200,16 @@ button:disabled {
   background: #fdecea;
 }
 
+/* Filters */
+
+.filters {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr auto;
+  gap: 14px;
+  align-items: end;
+  margin-bottom: 16px;
+}
+
 /* Table */
 
 .table-wrapper {
@@ -285,7 +295,8 @@ button:disabled {
 }
 
 @media (max-width: 720px) {
-  .issue-form {
+  .issue-form,
+  .filters {
     grid-template-columns: 1fr;
   }
 }
