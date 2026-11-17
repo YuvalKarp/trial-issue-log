@@ -1,0 +1,4 @@
+title,description,site,severity,status,createdAt
+Missing lab results,Lab results for patient 007 not in file,Site-101,major,open,2025-06-01T09:00:00Z
+Comma in description,Patient 008, visit 3 was late,Site-101,minor,open,2025-06-02T09:00:00Z
+Missing a cell,Only five cells in this row,Site-202,minor,open

@@ -14,6 +14,10 @@ _To be filled in._
 
 - **Title search scans the whole table.** Search uses `ILIKE '%text%'`, which a regular index cannot help with, so every search reads every row. With hundreds or a few thousand issues this is instant; with hundreds of thousands (many sites, many studies) it will slow down.
   - Before that scale: add a trigram index (`pg_trgm` extension, GIN index on `title`), which makes the same query fast without changing the API.
+- **Import preview before saving.** Today one bad row blocks the whole file (see Assumptions). With real files of hundreds of rows, a single wrong date would hold back every other finding until someone can check it with the site.
+  - Next step: upload checks the file without saving and shows a summary ("495 valid, 3 already in the log, 2 with errors", with the errors by line). The user then chooses to import the valid rows or fix the file first.
+  - If they import part of the file, the rejected rows stay visible as pending ("2 rows from the 17 Nov import waiting to be fixed") instead of disappearing. Nothing goes in partially without the user knowing, and one bad row no longer blocks the rest.
+  - Most of the work exists already: the import collects every error before saving. What is missing is a "check only" mode on the server and a summary screen.
 
 ## Gaps
 
@@ -25,4 +29,7 @@ _To be filled in._
 
 ## Assumptions
 
-_To be filled in._
+- **A CSV import is all-or-nothing.** If any row is invalid, nothing is saved and every problem is listed by line number. A partial import would leave the team unsure which findings made it in.
+- **The same title, site and createdAt means the same issue.** Rows matching an existing issue on those three fields are skipped, so importing the same file twice does not double the counts. A genuinely different finding with the same title, at the same site, at the exact same second would also be skipped; that seemed far less likely than an accidental re-import.
+  - Two imports of the same file running at the very same moment could still both insert. Before real use: a unique index on these three fields would make the database enforce it.
+- **createdAt in a CSV is when the issue was found,** so it must include a time zone and cannot be in the future. updatedAt is set to the time of the import.

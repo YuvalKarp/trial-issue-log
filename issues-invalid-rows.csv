@@ -1,0 +1,7 @@
+title,description,site,severity,status,createdAt
+Missing lab results,Lab results for patient 007 not in file,Site-101,major,open,2025-06-01T09:00:00Z
+Wrong severity,Severity is not one of the allowed values,Site-101,urgent,open,2025-06-02T09:00:00Z
+,This row has no title,Site-202,minor,open,2025-06-03T09:00:00Z
+Date without time zone,The date has no Z or offset,Site-202,minor,open,2025-06-04T09:00:00
+Future date,This issue was supposedly found in the future,Site-303,minor,open,2999-01-01T00:00:00Z
+Bad status,Status is not one of the allowed values,Site-303,critical,closed,2025-06-05T09:00:00Z

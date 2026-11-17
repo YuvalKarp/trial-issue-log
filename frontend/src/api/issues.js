@@ -48,6 +48,13 @@ export function useUpdateIssue() {
   );
 }
 
+// Called with the text of a CSV file. Resolves to { imported, skipped }.
+export function useImportIssues() {
+  return useIssueMutation((csvText) =>
+    request('/api/issues/import', { method: 'POST', text: csvText, type: 'text/csv' }),
+  );
+}
+
 export function useDeleteIssue() {
   return useIssueMutation((id) => request(`/api/issues/${id}`, { method: 'DELETE' }));
 }

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useLocation, useSearchParams } from 'react-router';
 import { useCreateIssue, useIssues } from '../api/issues.js';
+import ImportCsvButton from '../components/ImportCsvButton.jsx';
 import IssueFilters from '../components/IssueFilters.jsx';
 import IssueForm from '../components/IssueForm.jsx';
 import IssuesTable from '../components/IssuesTable.jsx';
@@ -72,7 +73,10 @@ export default function IssuesPage() {
       </section>
 
       <section className="card" id="issues" ref={issuesRef}>
-        <h2>Issues</h2>
+        <div className="card-header">
+          <h2>Issues</h2>
+          <ImportCsvButton />
+        </div>
         <IssueFilters filters={filters} onChange={handleFiltersChange} />
         {isPending && <p className="muted">Loading issues...</p>}
         {error && <p className="error-banner">Could not load issues: {error.message}</p>}

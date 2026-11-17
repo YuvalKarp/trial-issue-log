@@ -7,16 +7,24 @@ export class ApiError extends Error {
   }
 }
 
-// Sends a JSON request and returns the parsed response. Throws ApiError on any non-2xx status,
+// Sends a request and returns the parsed JSON response. Throws ApiError on any non-2xx status,
 // so callers only handle the success shape.
-export async function request(path, { method = 'GET', body } = {}) {
+//   body         an object, sent as JSON
+//   text + type  raw text with its content type instead, e.g. a CSV file as 'text/csv'
+export async function request(path, { method = 'GET', body, text, type } = {}) {
+  let headers;
+  let payload;
+  if (text !== undefined) {
+    headers = { 'Content-Type': type };
+    payload = text;
+  } else if (body) {
+    headers = { 'Content-Type': 'application/json' };
+    payload = JSON.stringify(body);
+  }
+
   let res;
   try {
-    res = await fetch(path, {
-      method,
-      headers: body ? { 'Content-Type': 'application/json' } : undefined,
-      body: body ? JSON.stringify(body) : undefined,
-    });
+    res = await fetch(path, { method, headers, body: payload });
   } catch {
     throw new ApiError(0, { error: { message: 'Cannot reach the server' } });
   }

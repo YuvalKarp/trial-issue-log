@@ -54,6 +54,21 @@ export const listIssuesQuerySchema = z.strictObject({
   severity: fields.severity.optional(),
 });
 
+// One row of an imported CSV file. The same fields as a regular create, except that status
+// is required and createdAt comes from the file. createdAt must be an ISO 8601 date-time with
+// a time zone (2025-05-01T09:00:00Z): without one, the same text means different moments
+// in different places. A date in the future cannot be when an issue was found.
+export const IMPORT_COLUMNS = ['title', 'description', 'site', 'severity', 'status', 'createdAt'];
+export const importRowSchema = z.strictObject({
+  ...fields,
+  createdAt: z.iso
+    .datetime({
+      offset: true,
+      error: 'createdAt must be an ISO 8601 date-time with a time zone, e.g. 2025-05-01T09:00:00Z',
+    })
+    .refine((value) => new Date(value) <= new Date(), { message: 'createdAt cannot be in the future' }),
+});
+
 // Query string of GET /api/issues/stats: no parameters are accepted.
 export const statsQuerySchema = z.strictObject({});
 

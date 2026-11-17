@@ -39,6 +39,13 @@ export function createApp({ pool }) {
       });
     }
 
+    // A body over the size limit (the CSV import allows 1MB).
+    if (err.type === 'entity.too.large') {
+      return res.status(413).json({
+        error: { code: 'PAYLOAD_TOO_LARGE', message: 'The file is too large (limit is 1MB)' },
+      });
+    }
+
     if (err instanceof ValidationError) {
       return res.status(400).json({
         error: { code: 'VALIDATION_ERROR', message: err.message, details: err.details },

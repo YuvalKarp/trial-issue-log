@@ -71,6 +71,9 @@ h2 {
   margin: 0 auto;
   padding: 24px 16px 48px;
   display: grid;
+  /* minmax(0, ...) lets the column be narrower than its content. Without it a wide table
+     stretches the whole page on a small screen instead of scrolling inside .table-wrapper. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 20px;
 }
 
@@ -226,6 +229,41 @@ button:disabled {
   border-radius: 6px;
   color: var(--danger);
   background: #fdecea;
+}
+
+/* Card title with an action on the right (Issues + Import CSV) */
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.card-header h2 {
+  margin-bottom: 0;
+}
+
+.import {
+  display: grid;
+  justify-items: end;
+  gap: 8px;
+}
+
+.import-message {
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+.import-message p {
+  margin: 0;
+}
+
+.import-message ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  text-align: left;
 }
 
 /* Filters */

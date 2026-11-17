@@ -33,6 +33,36 @@ export function createIssuesRepository(pool) {
       return rows[0];
     },
 
+    // Inserts many issues (with their own status and createdAt) in a single statement, skipping
+    // any that match an existing issue on title, site and created_at. A single statement is
+    // atomic on its own: either every row goes in or none does, without an explicit transaction.
+    // Each column travels as one array parameter, and unnest() turns the arrays back into rows,
+    // so the number of parameters stays at six however many rows there are.
+    // Returns how many issues were inserted.
+    async insertManySkippingExisting(issues) {
+      const column = (name) => issues.map((issue) => issue[name]);
+      const { rowCount } = await pool.query(
+        `INSERT INTO issues (title, description, site, severity, status, created_at)
+         SELECT * FROM unnest($1::text[], $2::text[], $3::text[], $4::text[], $5::text[], $6::timestamptz[])
+           AS incoming (title, description, site, severity, status, created_at)
+         WHERE NOT EXISTS (
+           SELECT 1 FROM issues existing
+           WHERE existing.title = incoming.title
+             AND existing.site = incoming.site
+             AND existing.created_at = incoming.created_at
+         )`,
+        [
+          column('title'),
+          column('description'),
+          column('site'),
+          column('severity'),
+          column('status'),
+          column('createdAt'),
+        ],
+      );
+      return rowCount;
+    },
+
     // Issues matching all the given filters, newest first. id breaks ties between issues
     // created at the same moment. Each filter that is present adds one condition and one parameter.
     async list({ search, status, severity } = {}) {
