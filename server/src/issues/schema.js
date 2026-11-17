@@ -54,6 +54,9 @@ export const listIssuesQuerySchema = z.strictObject({
   severity: fields.severity.optional(),
 });
 
+// Query string of GET /api/issues/stats: no parameters are accepted.
+export const statsQuerySchema = z.strictObject({});
+
 // The :id in the URL. It arrives as a string; only a positive integer that fits the
 // database column is accepted, so "abc" or "stats" is a 400 and never reaches SQL.
 const MAX_ID = 2147483647;

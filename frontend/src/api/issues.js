@@ -18,6 +18,15 @@ export function useIssues(filters = {}) {
   });
 }
 
+// Counts for the dashboard. The key starts with 'issues' too, so creating, editing or
+// deleting an issue refreshes the counts along with the list.
+export function useIssueStats() {
+  return useQuery({
+    queryKey: [...ISSUES_KEY, 'stats'],
+    queryFn: () => request('/api/issues/stats'),
+  });
+}
+
 // A mutation that refetches the issues list after it succeeds, so the UI always shows
 // what the server has rather than a local guess.
 function useIssueMutation(mutationFn) {

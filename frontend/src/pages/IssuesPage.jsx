@@ -1,5 +1,5 @@
-import { useCallback } from 'react';
-import { useSearchParams } from 'react-router';
+import { useCallback, useEffect, useRef } from 'react';
+import { useLocation, useSearchParams } from 'react-router';
 import { useCreateIssue, useIssues } from '../api/issues.js';
 import IssueFilters from '../components/IssueFilters.jsx';
 import IssueForm from '../components/IssueForm.jsx';
@@ -26,6 +26,17 @@ export default function IssuesPage() {
 
   const { data, isPending, error } = useIssues(filters);
   const createIssue = useCreateIssue();
+
+  // Links from the dashboard end with #issues. The browser only jumps to an #anchor on a full
+  // page load, not on navigation inside the app, so the scroll is done here. It runs again
+  // once the issues arrive, because before that the page may be too short to scroll.
+  // The hash disappears from the URL on the next filter change, so changing filters does not scroll.
+  const { hash } = useLocation();
+  const issuesRef = useRef(null);
+  const hasData = Boolean(data);
+  useEffect(() => {
+    if (hash === '#issues') issuesRef.current?.scrollIntoView();
+  }, [hash, hasData]);
 
   // Merges the changed filters into the URL. Empty values are removed rather than written as "?status=".
   // useCallback keeps the function identity stable, which the search box's delay timer relies on.
@@ -60,7 +71,7 @@ export default function IssuesPage() {
         />
       </section>
 
-      <section className="card">
+      <section className="card" id="issues" ref={issuesRef}>
         <h2>Issues</h2>
         <IssueFilters filters={filters} onChange={handleFiltersChange} />
         {isPending && <p className="muted">Loading issues...</p>}

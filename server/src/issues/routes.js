@@ -5,6 +5,7 @@ import {
   createIssueSchema,
   issueParamsSchema,
   listIssuesQuerySchema,
+  statsQuerySchema,
   updateIssueSchema,
 } from './schema.js';
 
@@ -27,8 +28,14 @@ export function createIssuesRouter({ pool }) {
     res.status(201).json(issue);
   });
 
-  // Routes with a fixed path (e.g. /stats) must be registered above this point.
+  // Routes with a fixed path (like /stats) must be registered above the /:id routes.
   // Express matches in order, and /:id would otherwise capture them.
+
+  // Counts for the dashboard: { total, byStatus: {...}, bySeverity: {...} }.
+  router.get('/stats', async (req, res) => {
+    parse(statsQuerySchema, req.query);
+    res.json(await issues.stats());
+  });
 
   router.get('/:id', async (req, res) => {
     const { id } = parse(issueParamsSchema, req.params);

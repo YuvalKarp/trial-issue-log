@@ -1,3 +1,5 @@
+import { SEVERITIES, STATUSES } from './schema.js';
+
 // All SQL for issues lives here. Every value goes in as a parameter ($1, $2, ...), never by
 // building SQL strings from input.
 
@@ -60,6 +62,28 @@ export function createIssuesRepository(pool) {
         values,
       );
       return rows;
+    },
+
+    // Counts of issues by status and by severity. One GROUP BY returns a row per
+    // (status, severity) pair that exists; both totals are added up from those rows.
+    // Values with no issues are absent from the result, so every count starts at 0.
+    async stats() {
+      const { rows } = await pool.query(
+        // count(*) is a bigint, which pg returns as a string; ::int makes it a number.
+        `SELECT status, severity, count(*)::int AS count
+         FROM issues
+         GROUP BY status, severity`,
+      );
+
+      const byStatus = Object.fromEntries(STATUSES.map((status) => [status, 0]));
+      const bySeverity = Object.fromEntries(SEVERITIES.map((severity) => [severity, 0]));
+      let total = 0;
+      for (const { status, severity, count } of rows) {
+        byStatus[status] += count;
+        bySeverity[severity] += count;
+        total += count;
+      }
+      return { total, byStatus, bySeverity };
     },
 
     // Returns the issue, or undefined if there is none with this id.
