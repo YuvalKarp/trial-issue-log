@@ -9,5 +9,9 @@ export function loadConfig(env = process.env) {
     throw new Error(`PORT must be a positive integer, got "${env.PORT}"`);
   }
 
-  return { databaseUrl: env.DATABASE_URL, port };
+  // Optional: the folder with the built frontend. Set in the Docker image, where the server
+  // serves the UI too. In development Vite serves the UI, so it is left unset.
+  const staticDir = env.STATIC_DIR || undefined;
+
+  return { databaseUrl: env.DATABASE_URL, port, staticDir };
 }

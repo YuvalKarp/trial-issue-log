@@ -1,0 +1,55 @@
+# Runs on every push and pull request: the server tests against a real Postgres,
+# the frontend build, and the Docker image build.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: issues
+          # A throwaway container that exists only for this job; not a real secret.
+          POSTGRES_PASSWORD: ci-only
+          POSTGRES_DB: issues
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U issues -d issues"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 15
+
+    env:
+      # The tests create and use issues_test next to this database.
+      DATABASE_URL: postgres://issues:ci-only@localhost:5432/issues
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 26
+          cache: npm
+          cache-dependency-path: |
+            server/package-lock.json
+            frontend/package-lock.json
+
+      - name: Server tests
+        run: |
+          npm ci --prefix server
+          npm test --prefix server
+
+      - name: Frontend build
+        run: |
+          npm ci --prefix frontend
+          npm run build --prefix frontend
+
+      - name: Docker image build
+        run: docker build .

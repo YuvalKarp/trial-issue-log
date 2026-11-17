@@ -1,0 +1,12 @@
+# Kept out of the build context: installed dependencies (reinstalled inside the image),
+# build output, secrets and local files.
+**/node_modules
+**/dist
+**/coverage
+.env
+.env.*
+.git
+.github
+.claude
+.DS_Store
+*.log

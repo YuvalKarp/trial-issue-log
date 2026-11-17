@@ -11,7 +11,7 @@ if (applied.length > 0) {
   console.log(`Applied migrations: ${applied.join(', ')}`);
 }
 
-const app = createApp({ pool });
+const app = createApp({ pool, staticDir: config.staticDir });
 const server = app.listen(config.port, () => {
   console.log(`Server listening on http://localhost:${config.port}`);
 });

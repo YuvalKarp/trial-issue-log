@@ -1,14 +1,18 @@
-# Local development database.
-# Values come from .env (see .env.example); the defaults keep `docker compose up` working without one.
+# The database, and the app built from the Dockerfile.
+#   docker compose up -d --build   runs everything (http://localhost:3000)
+#   npm run db:up                  runs only the database, for local development
+# Values come from .env (see .env.example); the defaults keep it working without one.
 services:
   db:
     image: postgres:16-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-issues}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
       POSTGRES_DB: ${POSTGRES_DB:-issues}
     ports:
-      # Bound to localhost only: reachable from this machine, not from the network.
+      # Bound to localhost only: reachable from this machine (for development and tests),
+      # never from the network. The app reaches it inside Docker's network as "db".
       - "127.0.0.1:5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
@@ -17,6 +21,18 @@ services:
       interval: 2s
       timeout: 3s
       retries: 15
+
+  app:
+    build: .
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-issues}:${POSTGRES_PASSWORD:-change-me}@db:5432/${POSTGRES_DB:-issues}
+    ports:
+      # 3000 locally; on the server APP_PORT=80 in .env.
+      - "${APP_PORT:-3000}:3000"
+    depends_on:
+      db:
+        condition: service_healthy
 
 volumes:
   pgdata:

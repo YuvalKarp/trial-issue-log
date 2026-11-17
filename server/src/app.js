@@ -1,10 +1,13 @@
+import path from 'node:path';
 import express from 'express';
 import { NotFoundError, ValidationError } from './errors.js';
 import { createIssuesRouter } from './issues/routes.js';
 
 // Builds the Express app without starting it, so tests can call it directly.
-// Everything the app depends on (for now, the database pool) is passed in.
-export function createApp({ pool }) {
+// Everything the app depends on is passed in:
+//   pool       the database connection pool
+//   staticDir  optional folder with the built frontend, served alongside the API
+export function createApp({ pool, staticDir }) {
   const app = express();
 
   app.use(express.json());
@@ -20,6 +23,19 @@ export function createApp({ pool }) {
   });
 
   app.use('/api/issues', createIssuesRouter({ pool }));
+
+  if (staticDir) {
+    // The built frontend: index.html and the files under assets/.
+    app.use(express.static(staticDir));
+    // The frontend has its own pages (/dashboard). Opening one directly, or reloading it,
+    // asks the server for that path, so any other GET outside /api gets index.html and
+    // React Router shows the right page.
+    app.use((req, res, next) => {
+      if (req.method !== 'GET' || req.path.startsWith('/api/')) return next();
+      // sendFile needs an absolute path.
+      res.sendFile(path.resolve(staticDir, 'index.html'));
+    });
+  }
 
   // No route matched.
   app.use((req, res) => {
