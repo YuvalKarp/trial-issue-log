@@ -202,4 +202,4 @@ The app image is unchanged; what runs around it changes:
 
 - [PRODUCT_NOTES.md](PRODUCT_NOTES.md): product thinking, gaps and assumptions
 - [AI_NOTES.md](AI_NOTES.md): how AI tools were used and checked
-- [ARCHITECTURE_PLAN.md](ARCHITECTURE_PLAN.md): the architecture plan and work plan written before coding (in Hebrew)
+- [ARCHITECTURE_PLAN.md](ARCHITECTURE_PLAN.md): the architecture plan and work plan written before coding

@@ -1,106 +1,106 @@
-# Trial Issue Log: הצעת ארכיטקטורה ותוכנית עבודה
+# Trial Issue Log: Architecture Proposal and Work Plan
 
-מסמך תכנון למטלת הבית (Founding Engineer). נכתב לפני שורת הקוד הראשונה; שום שלב לא מתחיל בלי אישור.
+Planning document for the home assignment (Founding Engineer). Written before the first line of code; no step starts without approval. The [README](README.md) describes what was actually built.
 
-גרסה 2: עודכנה לפי סבב הערות (pagination, סדר routes, `updated_at`, escaping בחיפוש, ייבוא CSV, היגיינה, זמן). שתי ההחלטות שהיו פתוחות הוכרעו: JavaScript ו-PostgreSQL (ראו "החלטות שהוכרעו" בסוף).
+Version 2: updated after a round of review comments (pagination, route order, `updated_at`, search escaping, CSV import, hygiene, time). The two open decisions were settled: JavaScript and PostgreSQL (see "Decisions made" at the end).
 
-## ההמלצה בקצרה
+## The recommendation in short
 
-Monorepo אחד: שרת Express על Node.js LTS, PostgreSQL, פרונט React עם Vite, והכול נארז ל-Docker image אחד שרץ על EC2.
+One monorepo: an Express server on Node.js LTS, PostgreSQL, a React frontend with Vite, all packaged into a single Docker image that runs on EC2.
 
-הקו המנחה: אותו סטאק משמש גם למטלה וגם לפרודקשן, כך שהתשובה ל"מה היית עושה בפרודקשן" היא "אותו דבר, מנוהל" ולא "הייתי כותבת מחדש".
+The guiding principle: the same stack serves both the assignment and production, so the answer to "what would you do in production" is "the same thing, managed", not "I would rewrite it".
 
-## בחירות ונימוקים
+## Choices and reasoning
 
-| שכבה | בחירה | למה למטלה | מה משתנה בפרודקשן |
+| Layer | Choice | Why for the assignment | What changes in production |
 |---|---|---|---|
-| שפה | JavaScript מודרני (ESM) | כל שורה ניתנת להסבר בראיון; בלי שלב build בשרת | מעבר ל-TypeScript כשהקוד והצוות גדלים |
-| שרת | Express 5 + Zod | כל בודק קורא Express מיד; סכמת Zod אחת מגדירה את הוולידציה (400) במקום אחד | השכבות (route ← service ← repository) מאפשרות מעבר ל-Fastify/NestJS כשהצוות גדל |
-| DB | PostgreSQL 16 | רלציוני, `CHECK` על enums, `timestamptz`, חיפוש `ILIKE`, טרנזקציה לייבוא | RDS עם גיבויים ו-Multi-AZ; טבלאות sites/trials/users ו-audit trail (דרישה רגולטורית בתחום) |
-| גישה ל-DB | `pg` עם SQL פרמטרי בלבד, בלי ORM | טבלה אחת; ORM היה over-engineering, וה-SQL עצמו הוא ה-deliverable של `db/` | Kysely לשאילתות typed וכלי migrations |
-| פרונט | React + Vite + TanStack Query + React Router | החברה עובדת עם React; TanStack Query מרענן רשימה ודשבורד אחרי כל שינוי בלי state ידני | אותו סטאק, בתוספת ספריית קומפוננטות ו-auth |
-| עיצוב | CSS רגיל, בלי ספריית UI | שני עמודים; פחות תלויות | design system |
-| דיפלוי | image אחד (השרת מגיש גם את הפרונט) + Postgres ב-docker compose על EC2 t3.micro | origin אחד בלי CORS, פקודה אחת, בתוך ה-free tier | ECS/App Runner + RDS + CloudFront, IaC, סודות ב-Secrets Manager |
-| CI | workflow מינימלי ב-GitHub Actions: התקנה ו-`npm test` | כ-15 שורות YAML, מראה deployment hygiene | מוסיפים lint ו-deploy אוטומטי |
+| Language | Modern JavaScript (ESM) | Every line can be explained in the interview; no build step on the server | Move to TypeScript as the code and the team grow |
+| Server | Express 5 + Zod | Any reviewer reads Express immediately; one Zod schema defines validation (400) in one place | The layers (route → service → repository) allow moving to Fastify/NestJS as the team grows |
+| DB | PostgreSQL 16 | Relational, `CHECK` on enums, `timestamptz`, `ILIKE` search, a transaction for the import | RDS with backups and Multi-AZ; sites/trials/users tables and an audit trail (a regulatory requirement in this domain) |
+| DB access | `pg` with parameterized SQL only, no ORM | One table; an ORM would be over-engineering, and the SQL itself is the deliverable of `db/` | Kysely for typed queries, and a migrations tool |
+| Frontend | React + Vite + TanStack Query + React Router | The company works with React; TanStack Query refreshes the list and dashboard after every change without manual state | Same stack, plus a component library and auth |
+| Styling | Plain CSS, no UI library | Two pages; fewer dependencies | A design system |
+| Deploy | One image (the server also serves the frontend) + Postgres in docker compose on EC2 t3.micro | One origin with no CORS, one command, within the free tier | ECS/App Runner + RDS + CloudFront, IaC, secrets in Secrets Manager |
+| CI | A minimal GitHub Actions workflow: install and `npm test` | About 15 lines of YAML, shows deployment hygiene | Add lint and automatic deploy |
 
-### חלופות שנדחו
+### Alternatives rejected
 
-- **Next.js:** אין צורך ב-SSR, והוא מטשטש את ההפרדה בין שרת לפרונט שהמטלה מבקשת.
-- **ORM (Prisma/Drizzle):** לטבלה אחת זו שכבה מיותרת; SQL גלוי קל יותר להסבר בראיון.
+- **Next.js:** no need for SSR, and it blurs the separation between server and frontend that the assignment asks for.
+- **ORM (Prisma/Drizzle):** for one table it is an unnecessary layer; visible SQL is easier to explain in the interview.
 
-## מודל הנתונים
+## Data model
 
-טבלת `issues` אחת:
+A single `issues` table:
 
-| עמודה | טיפוס | הערות |
+| Column | Type | Notes |
 |---|---|---|
-| `id` | identity | מפתח ראשי אוטומטי |
+| `id` | identity | Auto-generated primary key |
 | `title` | text | NOT NULL |
 | `description` | text | NOT NULL |
-| `site` | text | NOT NULL, למשל `Site-101` |
-| `severity` | text | `CHECK` על `minor` / `major` / `critical` |
-| `status` | text | `CHECK` על `open` / `in_progress` / `resolved`, ברירת מחדל `open` |
-| `created_at` | timestamptz | ברירת מחדל `now()` |
-| `updated_at` | timestamptz | מתעדכן על ידי trigger ב-DB |
+| `site` | text | NOT NULL, e.g. `Site-101` |
+| `severity` | text | `CHECK` on `minor` / `major` / `critical` |
+| `status` | text | `CHECK` on `open` / `in_progress` / `resolved`, default `open` |
+| `created_at` | timestamptz | Default `now()` |
+| `updated_at` | timestamptz | Updated by a trigger in the DB |
 
-- אינדקס על `created_at DESC` (המיון של הרשימה).
-- `CHECK` על text ולא enum של Postgres, כי קל יותר להוסיף ערכים בעתיד.
-- **`updated_at` מתעדכן ב-trigger (`BEFORE UPDATE`) ולא בשאילתה.** עדכון ידני קל לשכוח בשאילתה חדשה; trigger תופס כל נתיב עדכון, כולל תיקון ידני ב-SQL. טסט מוודא ש-`PATCH` מקדם את `updatedAt` ולא נוגע ב-`createdAt`.
+- Index on `created_at DESC` (the list's sort order).
+- `CHECK` on text rather than a Postgres enum, because adding values later is easier.
+- **`updated_at` is updated by a trigger (`BEFORE UPDATE`), not in the query.** A manual update is easy to forget in a new query; a trigger catches every update path, including a manual fix in SQL. A test checks that `PATCH` advances `updatedAt` and does not touch `createdAt`.
 
 ## API
 
-| Endpoint | תפקיד |
+| Endpoint | Purpose |
 |---|---|
-| `GET /api/issues?search=&status=&severity=` | רשימה עם סינון, ממוינת לפי `createdAt` יורד |
-| `GET /api/issues/stats` | ספירות לדשבורד, מחושבות ב-DB עם `GROUP BY` |
-| `GET /api/issues/:id` | פרטי issue |
-| `POST /api/issues` | יצירה |
-| `PATCH /api/issues/:id` | עריכה חלקית; Resolve הוא `status: resolved` |
-| `DELETE /api/issues/:id` | מחיקה |
-| `POST /api/issues/import` | ייבוא CSV |
-| `GET /health` | בדיקת חיים לדיפלוי |
+| `GET /api/issues?search=&status=&severity=` | List with filters, sorted by `createdAt` descending |
+| `GET /api/issues/stats` | Counts for the dashboard, computed in the DB with `GROUP BY` |
+| `GET /api/issues/:id` | Issue details |
+| `POST /api/issues` | Create |
+| `PATCH /api/issues/:id` | Partial update; Resolve is `status: resolved` |
+| `DELETE /api/issues/:id` | Delete |
+| `POST /api/issues/import` | CSV import |
+| `GET /health` | Liveness check for deployment |
 
-- שגיאות בפורמט אחיד: `{ error: { code, message, details[] } }`.
-- קלט פסול מחזיר 400; id שלא קיים מחזיר 404.
-- **בלי pagination בליבה.** הפרמטר `page` הוסר כדי שה-API יתאים לתוכנית. Pagination בצד השרת (`LIMIT`/`OFFSET` + `total`) הוא שלב אופציונלי בסוף, כמו שהמטלה מגדירה ("only if time remains").
-- **סדר routes:** `/stats` ו-`/import` מוגדרים לפני `/:id`, אחרת Express מפרש את "stats" כ-id. בנוסף `:id` עובר ולידציה כמספר שלם חיובי, כך ש-id לא מספרי מחזיר 400 ולא שגיאת DB. טסט ייעודי: `GET /api/issues/stats` מחזיר 200 עם מבנה הספירות.
-- **חיפוש:** כל השאילתות פרמטריות (`$1`, `$2`), בלי שרשור מחרוזות. בקלט החיפוש התווים `\`, `%` ו-`_` עוברים escaping לפני `ILIKE ... ESCAPE '\'`. טסט: חיפוש `%` או `_` לא מחזיר את כל הרשומות.
+- Errors in one format: `{ error: { code, message, details[] } }`.
+- Invalid input returns 400; an id that does not exist returns 404.
+- **No pagination in the core.** The `page` parameter was removed so the API matches the plan. Server-side pagination (`LIMIT`/`OFFSET` + `total`) is an optional last step, as the assignment defines it ("only if time remains").
+- **Route order:** `/stats` and `/import` are defined before `/:id`, otherwise Express reads "stats" as an id. In addition, `:id` is validated as a positive integer, so a non-numeric id returns 400 rather than a DB error. Dedicated test: `GET /api/issues/stats` returns 200 with the shape of the counts.
+- **Search:** all queries are parameterized (`$1`, `$2`), with no string concatenation. In the search input, the characters `\`, `%` and `_` are escaped before `ILIKE ... ESCAPE '\'`. Test: searching for `%` or `_` does not return every record.
 
-### ייבוא CSV: הכול-או-כלום
+### CSV import: all or nothing
 
-- **פענוח בספרייה קיימת** (`csv-parse`), לא קוד ידני. מטפלת במירכאות, פסיקים בתוך שדה ושורות חדשות.
-- **מגבלת גודל:** 1MB על גוף הבקשה; מעבר לכך 413.
-- **בדיקת כותרות:** שורת הכותרות חייבת להכיל בדיוק את שש הכותרות (`title,description,site,severity,status,createdAt`), בכל סדר. כותרת חסרה, לא מוכרת או כפולה מחזירה 400 לפני שמעבדים שורות.
-- **כל שורה עוברת את אותה סכמת Zod** של יצירה רגילה, בתוספת `status` ו-`createdAt`. `createdAt` חייב להיות ISO 8601 עם אזור זמן, ולא בעתיד.
-- **הכול או כלום:** אם שורה אחת פסולה, שום דבר לא נכנס וחוזר 400 עם רשימת השגיאות לפי מספר שורה. בהקשר קליני ייבוא חלקי משאיר אי-ודאות לגבי מה נכנס. בפועל זה `INSERT` אחד לכל השורות (עם `unnest`), ופקודה אחת ב-Postgres היא אטומית מעצמה, כך שאין צורך בטרנזקציה מפורשת.
-- **כפילויות (הוחלט בשלב 6):** שורה שזהה ל-issue קיים ב-`title`, `site` ו-`createdAt`, או לשורה קודמת באותו קובץ, מדולגת. התשובה היא `{ imported, skipped }`, כך שייבוא חוזר של אותו קובץ לא מנפח את הספירות.
-- **העלאה:** הפרונט שולח את תוכן הקובץ כגוף `text/csv`, כך שאין צורך בספריית multipart. סוג תוכן אחר מחזיר 415.
+- **Parsing with an existing library** (`csv-parse`), not hand-written code. It handles quotes, commas inside a field and line breaks.
+- **Size limit:** 1MB on the request body; beyond that, 413.
+- **Header check:** the header row must contain exactly the six headers (`title,description,site,severity,status,createdAt`), in any order. A missing, unknown or repeated header returns 400 before any row is processed.
+- **Every row goes through the same Zod schema** as a regular create, plus `status` and `createdAt`. `createdAt` must be ISO 8601 with a time zone, and not in the future.
+- **All or nothing:** if one row is invalid, nothing goes in, and a 400 returns the list of errors by line number. In a clinical context a partial import leaves uncertainty about what went in. In practice this is a single `INSERT` for all rows (with `unnest`), and a single statement in Postgres is atomic on its own, so no explicit transaction is needed.
+- **Duplicates (decided in step 6):** a row identical to an existing issue on `title`, `site` and `createdAt`, or to an earlier row in the same file, is skipped. The response is `{ imported, skipped }`, so re-importing the same file does not inflate the counts.
+- **Upload:** the frontend sends the file's content as a `text/csv` body, so no multipart library is needed. Any other content type returns 415.
 
-## היגיינה ואבטחה בסיסית
+## Hygiene and basic security
 
-- `.gitignore` מהקומיט הראשון: `node_modules`, `.env`, תוצרי build.
-- `.env.example` עם שמות המשתנים וערכי דוגמה; ה-`.env` האמיתי לא נכנס ל-repo.
-- אין סודות בקוד, ב-compose או ב-CI. סיסמת ה-DB בפרודקשן נוצרת על השרת בלבד.
-- בדיפלוי Postgres לא מפרסם פורט החוצה; הוא נגיש רק ברשת הפנימית של Docker.
-- ב-security group פתוחים רק 80 לכולם ו-22 מכתובת ה-IP שלי בלבד. 5432 סגור.
+- `.gitignore` from the first commit: `node_modules`, `.env`, build output.
+- `.env.example` with the variable names and sample values; the real `.env` never enters the repo.
+- No secrets in the code, in compose or in CI. The production DB password is created on the server only.
+- In deployment, Postgres does not publish a port to the outside; it is reachable only inside the instance.
+- The security group opens only 80 to everyone and 22 to my IP address only. 5432 is closed.
 
-## מבנה תיקיות
+## Folder structure
 
 ```
 trial-issue-log/
 ├── server/
 │   ├── src/
-│   │   ├── app               # בניית האפליקציה (נפרד מ-listen, בשביל טסטים)
+│   │   ├── app               # builds the app (separate from listen, for tests)
 │   │   ├── index
-│   │   ├── db/               # pool + מריץ migrations
+│   │   ├── db/               # pool + migrations runner
 │   │   └── issues/           # routes, service, repository, schema (Zod), csv
 │   └── tests/                # api/ + unit/
 ├── frontend/
 │   └── src/
-│       ├── api/              # client + hooks של TanStack Query
+│       ├── api/              # client + TanStack Query hooks
 │       ├── pages/            # IssuesPage, DashboardPage
 │       └── components/       # IssueForm, IssuesTable, Filters, ImportCsv, StatChips
-├── db/                       # migrations ב-SQL (טבלה + trigger) + README של הסכמה
+├── db/                       # SQL migrations (table + trigger) + schema README
 ├── .github/workflows/ci.yml
 ├── .gitignore
 ├── .env.example
@@ -112,73 +112,73 @@ trial-issue-log/
 └── AI_NOTES.md
 ```
 
-קובצי הקוד בסיומת `.js` (ובפרונט `.jsx`).
+Code files use the `.js` extension (and `.jsx` in the frontend).
 
-## אסטרטגיית טסטים
+## Test strategy
 
-רוב ההשקעה הולכת לטסטי API מול DB אמיתי (Vitest + Supertest), כי שם נמצאים הבאגים האמיתיים באפליקציית CRUD: ולידציה, שאילתות סינון וטרנזקציות.
+Most of the effort goes into API tests against a real DB (Vitest + Supertest), because that is where the real bugs in a CRUD app are: validation, filter queries and transactions.
 
-1. **טסטי API (כ-18):**
-   - ולידציה שמחזירה 400 (שדה חסר, enum לא חוקי, id לא מספרי).
-   - 404 על id שלא קיים.
-   - `GET /api/issues/stats` מחזיר ספירות ולא נתפס כ-`:id`.
-   - ספירות ה-stats תואמות לנתונים.
-   - שילובי סינון וחיפוש, וסדר המיון.
-   - חיפוש עם `%` ו-`_` מתייחס אליהם כתווים רגילים.
-   - `PATCH` מקדם את `updatedAt` ומשאיר את `createdAt`.
-   - ייבוא: שורה פסולה לא מכניסה כלום; כותרת חסרה מחזירה 400; קובץ גדול מדי מחזיר 413.
-2. **טסטי יחידה (כ-6):** פענוח ואימות ה-CSV, כולל שדה עם פסיק בתוך מירכאות ותאריך פסול; פונקציית ה-escaping של החיפוש.
-3. **לא במטלה, ייכתב ב-README כ"הבא בתור" לפי הסדר:**
-   1. טסטי קומפוננטה לאישור המחיקה (Delete לא מוחק בלחיצה אחת, Cancel לא מוחק, Yes, delete שולח `DELETE` ל-id הנכון). ראשון ברשימה כי מחיקה היא הפעולה היחידה שאי אפשר לבטל, וכי כאן כבר נמצא באג בבדיקה ידנית.
-   2. טסט Playwright אחד לזרימה המלאה בדפדפן אמיתי.
-   3. טסטי קומפוננטות לטופס ולפילטרים.
-   4. טסט עומס לייבוא גדול.
+1. **API tests (about 18):**
+   - Validation that returns 400 (missing field, invalid enum, non-numeric id).
+   - 404 for an id that does not exist.
+   - `GET /api/issues/stats` returns counts and is not caught as `:id`.
+   - The stats counts match the data.
+   - Combinations of filters and search, and the sort order.
+   - Searching with `%` and `_` treats them as plain characters.
+   - `PATCH` advances `updatedAt` and leaves `createdAt`.
+   - Import: an invalid row inserts nothing; a missing header returns 400; a file that is too large returns 413.
+2. **Unit tests (about 6):** CSV parsing and validation, including a field with a comma inside quotes and an invalid date; the search escaping function.
+3. **Not in the assignment; to be written in the README as "next", in this order:**
+   1. Component tests for the delete confirmation (Delete does not delete on one click, Cancel does not delete, "Yes, delete" sends `DELETE` for the right id). First on the list because delete is the only action that cannot be undone, and because a bug was already found here in manual testing.
+   2. One Playwright test for the full flow in a real browser.
+   3. Component tests for the form and the filters.
+   4. A load test for a large import.
 
-פקודה אחת, `npm test`, מרימה DB לטסטים ומריצה הכול.
+One command, `npm test`, starts a DB for the tests and runs everything.
 
-## תוכנית עבודה
+## Work plan
 
-כל שלב מסתיים במשהו שעובד מקצה לקצה, ונעצר לאישור לפני המעבר לשלב הבא.
+Each step ends with something that works end to end, and stops for approval before moving to the next one.
 
-| # | שלב | תוצר | זמן |
+| # | Step | Output | Time |
 |---|---|---|---|
-| 0 | הכנות | Node LTS ו-Docker מותקנים, `git init`, `.gitignore`, `.env.example`, שלד התיקיות | 15 דק' |
-| 1 | שלד | DB ב-compose, migration (טבלה + trigger), שרת עם `/health`, טסט ראשון עובר | 30 דק' |
-| 2 | יצירה ורשימה | `POST` + `GET` עם ולידציה וטסטים, ועמוד פרונט שמציג ויוצר | 50 דק' |
-| 3 | עריכה, Resolve, מחיקה | `PATCH`/`DELETE`/`GET :id` עם טסטים וכפתורים בטבלה | 35 דק' |
-| 4 | סינון וחיפוש | פרמטרים בשרת עם escaping וטסטים, פילטרים בפרונט (נשמרים ב-URL) | 25 דק' |
-| 5 | דשבורד | `stats` עם טסטים (כולל סדר ה-routes), עמוד דשבורד וניווט | 25 דק' |
-| 6 | ייבוא CSV | endpoint עם טסטים, כפתור העלאה, `issues.csv` | 35 דק' |
-| 7 | אריזה | Dockerfile, README מלא, CI מינימלי | 25 דק' |
-| 8 | מסמכים | PRODUCT_NOTES, AI_NOTES | 30 דק' |
-| 9 | AWS (אופציונלי) | EC2 + compose, כתובת עובדת; אם אין זמן, תיעוד התהליך ב-README בלבד | 40 דק' |
-| 10 | Pagination (אופציונלי) | `page`/`pageSize` + `total` בשרת, הקודם/הבא בפרונט | 20 דק' |
+| 0 | Preparation | Node LTS and Docker installed, `git init`, `.gitignore`, `.env.example`, folder skeleton | 15 min |
+| 1 | Skeleton | DB in compose, migration (table + trigger), server with `/health`, first test passes | 30 min |
+| 2 | Create and list | `POST` + `GET` with validation and tests, and a frontend page that lists and creates | 50 min |
+| 3 | Edit, Resolve, delete | `PATCH`/`DELETE`/`GET :id` with tests and buttons in the table | 35 min |
+| 4 | Filters and search | Server parameters with escaping and tests, frontend filters (kept in the URL) | 25 min |
+| 5 | Dashboard | `stats` with tests (including route order), dashboard page and navigation | 25 min |
+| 6 | CSV import | Endpoint with tests, upload button, `issues.csv` | 35 min |
+| 7 | Packaging | Dockerfile, full README, minimal CI | 25 min |
+| 8 | Documents | PRODUCT_NOTES, AI_NOTES | 30 min |
+| 9 | AWS (optional) | EC2 + compose, a working URL; if there is no time, document the process in the README only | 40 min |
+| 10 | Pagination (optional) | `page`/`pageSize` + `total` on the server, previous/next in the frontend | 20 min |
 
-- ליבה (שלבים 0 עד 8): כארבע וחצי שעות, בתוך התקציב של 3 עד 5 שעות.
-- עם AWS: כחמש שעות ועשר דקות. המטלה מרשה לוותר עליו ולתעד במקום.
-- שלב המסמכים הוקדם לפני AWS, כי הוא חובה ו-AWS לא.
+- Core (steps 0 to 8): about four and a half hours, within the 3 to 5 hour budget.
+- With AWS: about five hours and ten minutes. The assignment allows skipping it and documenting it instead.
+- The documents step was moved ahead of AWS, because it is required and AWS is not.
 
-## החלטות שהוכרעו
+## Decisions made
 
-### 1. TypeScript או JavaScript
+### 1. TypeScript or JavaScript
 
-הוחלט: **JavaScript**.
+Decided: **JavaScript**.
 
-- **מה TypeScript נותן כאן בפועל:** שגיאה בזמן כתיבה כשהפרונט מצפה לשדה שהשרת לא מחזיר, והשלמה אוטומטית בעורך. באפליקציה עם טבלה אחת, ולידציית Zod בזמן ריצה וכ-18 טסטי API, רוב הבאגים האלה נתפסים בכל מקרה.
-- **המחיר:** שני קובצי `tsconfig`, שלב build לשרת, והגדרות טיפוסים (generics של Express ושל TanStack Query) שצריך לדעת להסביר שורה-שורה בראיון.
-- **השיקול המכריע:** הקריטריון הראשון בהערכה הוא "the ability to explain what you have". קוד JavaScript שמוסבר בביטחון עדיף על TypeScript שמוסבר בהיסוס.
-- **מה כותבים ב-README:** שבפרודקשן, עם צוות וקוד גדלים, עוברים ל-TypeScript, ולמה לא עכשיו.
+- **What TypeScript actually gives here:** an error at write time when the frontend expects a field the server does not return, and autocomplete in the editor. In an app with one table, Zod validation at runtime and about 18 API tests, most of those bugs are caught anyway.
+- **The cost:** two `tsconfig` files, a build step for the server, and type definitions (Express and TanStack Query generics) that I would need to explain line by line in the interview.
+- **The deciding factor:** the first evaluation criterion is "the ability to explain what you have". JavaScript explained with confidence is better than TypeScript explained with hesitation.
+- **What goes in the README:** that in production, with a growing team and codebase, we move to TypeScript, and why not now.
 
-### 2. Postgres + Docker או SQLite
+### 2. Postgres + Docker or SQLite
 
-הוחלט: **Postgres**, בתנאי ש-Docker עולה על המחשב בשלב 0 בתוך כרבע שעה. אם לא, עוברים ל-SQLite.
+Decided: **Postgres**, provided Docker runs on the computer in step 0 within about fifteen minutes. If not, switch to SQLite.
 
-- **בעד Postgres:** אותו DB במטלה ובפרודקשן; הטסטים בודקים את ה-`ILIKE`, ה-trigger וה-`timestamptz` האמיתיים; הדיפלוי ל-EC2 זהה להרצה המקומית.
-- **בעד SQLite:** הבודק מריץ `npm install` ו-`npm start` בלי Docker; חוסך כ-20 עד 30 דקות; המטלה שואלת בנפרד על המטלה ועל פרודקשן, כך ש"SQLite עכשיו, Postgres בפרודקשן" היא תשובה לגיטימית.
-- **איך מקטינים את המחיר של Postgres לבודק:** ה-README נפתח בפקודה אחת, `docker compose up`, שמרימה DB, migrations ואפליקציה בלי להתקין Node. אחריה מסלול פיתוח נפרד (DB ב-Docker, שרת ופרונט עם `npm run dev`), ודרישות קדם מפורשות בראש המסמך. כתובת ה-AWS, אם תהיה, מאפשרת לנסות בלי להריץ כלום.
+- **For Postgres:** the same DB in the assignment and in production; the tests exercise the real `ILIKE`, trigger and `timestamptz`; the deploy to EC2 is identical to running locally.
+- **For SQLite:** the reviewer runs `npm install` and `npm start` without Docker; saves about 20 to 30 minutes; the assignment asks separately about the assignment and about production, so "SQLite now, Postgres in production" is a legitimate answer.
+- **How to lower the cost of Postgres for the reviewer:** the README opens with one command, `docker compose up`, which starts the DB, migrations and app without installing Node. After it, a separate development path (DB in Docker, server and frontend with `npm run dev`), and explicit prerequisites at the top of the document. The AWS URL, if there is one, lets them try it without running anything.
 
-## שאלות פתוחות נוספות
+## Other open questions (resolved)
 
-- **Node ו-Docker:** נבדק בשלב 0, שניהם לא מותקנים במחשב (גם לא Homebrew). צריך להתקין לפני שלב 1.
-- **חשבון AWS:** האם קיים? בחשבונות שנפתחו אחרי יולי 2025 ה-free tier הוא קרדיטים ולא 12 חודשים; t3.micro מכוסה בשני המקרים.
-- **AI_NOTES:** צריך לשקף את מה שקרה באמת (איפה ה-AI טעה, מה נדחה). אפשר לצרף `/export` של השיחה במקום.
+- **Node and Docker:** checked in step 0; neither was installed (nor Homebrew). Both were installed before step 1.
+- **AWS account:** in accounts opened after July 2025 the free tier is credits rather than 12 months; t3.micro is covered in both cases. In the end AWS was not deployed; the README documents the process.
+- **AI_NOTES:** must reflect what actually happened (where the AI was wrong, what was rejected). Written as `AI_NOTES.md`.
